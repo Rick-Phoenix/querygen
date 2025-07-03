@@ -17,7 +17,7 @@ emit_result_struct_pointers: true
 
 `goimports` and `gofmt` (or gofumpt) are called on the generated files, so those should also be installed.
 
-# Example
+# Examples
 
 >[!NOTE]
 >The "Store" passed to the querygen.New must be the return value of calling `(your_sqlc_package).New(db_instance)`, or a wrapper struct that holds the sqlc queries under the "Queries" field and the db instance under the "db" field.
