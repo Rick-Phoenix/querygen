@@ -1,7 +1,10 @@
 # The goal of this package
 
-This package helps the user to quickly generate query aggregators for sqlc methods. 
-It reduces a good chunk of the boileplate by taking some inputs about the subqueries to run, and it generates a function that aggregates those subqueries (either in a transaction, if specified, or as separate goroutines) and returns the result.
+This package automatically generate functions that aggregate results from several sqlc subqueries. This is especially useful when using sqlite since sqlc [does not support json aggregation](https://github.com/sqlc-dev/sqlc/issues/3988#issuecomment-2985800613) with it, unlike postgres. 
+
+So this is meant to generate most (and in some cases, even all) of the boilerplate necessary to define and run those subqueries one by one. 
+
+It receives a schema definition for the subqueries, and then runs them either in a transaction, if specified, or as separate goroutines, and returns the aggregated result.
 
 # Requirements
 
@@ -15,7 +18,7 @@ emit_result_struct_pointers: true
 # Example
 
 >[!NOTE]
->The "Store" passed to the querygen. New must be the return value of calling `(your_sqlc_package).New(db_instance)`, or a wrapper struct that holds the sqlc queries under the "Queries" field.
+>The "Store" passed to the querygen.New must be the return value of calling `(your_sqlc_package).New(db_instance)`, or a wrapper struct that holds the sqlc queries under the "Queries" field.
 >
 >The outDir param is where the files will be generated, and the last part of this path will be the package name for the generated files. 
 >
