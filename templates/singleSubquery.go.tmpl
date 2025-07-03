@@ -1,0 +1,17 @@
+{{ define "singleSubquery" }}
+  {{ $prefix := "s.Queries" }}
+
+  {{ range .Subqueries }}
+  {{ if and $.IsTx .Context.HasTx }} {{ $prefix = "qtx" }} {{ end }}
+    {{ if or .NoReturn .DiscardReturn }}
+    if {{ if .VarName }}{{ .VarName }}, {{end}}err := {{ $prefix }}.{{ .Method }}(ctx, {{ if .Context.MakeParamStruct }}params.{{ end }}{{ .ParamName }}); err != nil {
+      return nil, fmt.Errorf("error with {{ .Method }}: %w", err)
+    }
+    {{ else }}{{/* Has return */}}
+    {{ .VarName }}, err := {{ $prefix }}.{{ .Method }}(ctx, {{ if .Context.MakeParamStruct }}params.{{ end }}{{ .ParamName }})
+    if err != nil {
+      return nil, fmt.Errorf("failed to get {{ .VarName }}: %w", err)
+    }
+  {{ end }}{{/* If .NoReturn */}}
+  {{ end }}
+{{ end }}

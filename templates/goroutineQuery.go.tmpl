@@ -1,0 +1,37 @@
+{{ define "goroutineQuery" }}
+
+{{ range .Subqueries }}
+  {{ .VarName }}Chan := make(chan {{ .ReturnType }})
+  {{ end }}
+  errChan := make(chan error, {{ len $.Subqueries }})
+
+
+	var wg sync.WaitGroup
+	wg.Add({{ len $.Subqueries }})
+
+  {{ range .Subqueries }}
+  go func() {
+    defer wg.Done()
+    {{ .VarName }}, err := s.Queries.{{ .Method }}(ctx, {{ if .Context.MakeParamStruct }}params.{{ end }}{{ .ParamName }})
+    if err != nil {
+      errChan <- fmt.Errorf("failed to get {{ .VarName }}: %w", err)
+      return
+    }
+    {{ .VarName }}Chan <- {{ .VarName }}
+	}()
+  {{ end }}
+
+	wg.Wait()
+  {{ range .Subqueries }}
+  close({{ .VarName }}Chan)
+  {{ end }}
+
+	for err := range errChan {
+		return nil, err
+	}
+
+  {{ range .Subqueries }}
+  {{ .VarName }} := <- {{ .VarName }}Chan
+  {{ end }}
+
+{{ end }}

@@ -1,0 +1,53 @@
+{{ define "multiQuery" }}
+
+package {{ .Package }}
+{{ if .MakeParamStruct }}
+type {{ .FuncParamType }} struct {
+  {{ range $name, $type := .FunctionParams }}
+  {{ $name }} {{ $type }}
+  {{ end }}
+}
+{{ end }}
+
+func (s *Store) {{ .Name }}(ctx context.Context, {{ .FuncParamName }} {{ .FuncParamType }}) (*{{ .OutType }}, error) {
+  {{ if .HasTx }}
+  tx, err := s.db.(*sql.DB).BeginTx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	qtx := s.Queries.WithTx(tx)
+  {{ end }}
+
+  {{ range .Queries }}
+
+{{ if .IsTx }}
+
+  {{ if  $.HasTx }}
+  {{ template "txQuery" . }}
+  {{ else }}
+  {{ template "singleSubquery" . }}
+  {{ end }}
+
+{{ else }}
+
+  {{ if gt (len .Subqueries) 1 }}
+  {{ template "goroutineQuery" . }}
+  {{ else }}
+  {{ template "singleSubquery" . }}
+  {{ end }}
+
+{{ end }}
+
+{{ end }}
+
+	return &{{ .OutType }}{
+    {{ range .OutTypeFields }}
+    {{ . }}: {{ lower . }}, 
+    {{ end }}
+	}, nil
+}
+
+{{ end }}
+

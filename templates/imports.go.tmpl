@@ -1,0 +1,7 @@
+{{ define "imports" }}
+import (
+  {{ range $import, $_ := . -}}
+  "{{ $import }}"
+  {{ end -}}
+)
+{{ end }}

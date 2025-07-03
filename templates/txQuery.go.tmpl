@@ -1,0 +1,9 @@
+{{ define "txQuery" }}
+
+  {{ template "singleSubquery" . }}
+
+  if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+{{ end }}
