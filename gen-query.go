@@ -14,13 +14,20 @@ import (
 	u "github.com/Rick-Phoenix/goutils"
 )
 
+// A subquery is defined and executed as part of a QueryGroup. It contains all the data that gets used for the file generation.
 type Subquery struct {
-	Method          string
+	// Name of the method that gets called by the subquery (i.e. "GetUser")
+	Method string
+	// If this query has a single parameter that is not a struct, it will be added to the list of params with this name.
 	SingleParamName string
-	QueryParamName  string
-	NoReturn        bool
-	Varname         string
-	DiscardReturn   bool
+	// An override for the name of the param being passed to the sqlc query that this subquery uses. Can be used, for example, to reuse a param that gets used in another struct param used in another query.
+	QueryParamName string
+	// Whether this query returns a value or just an error.
+	NoReturn bool
+	// The name of the variable to assign to this subquery. Defaults to the name of the return type of the query.
+	Varname string
+	// Whether the first return value should be discarded.
+	DiscardReturn bool
 }
 
 type subqueryData struct {
@@ -33,16 +40,25 @@ type subqueryData struct {
 	Context       *queryData
 }
 
+// The schema for a query aggregator.
 type QueryGenSchema struct {
-	Name       string
-	Queries    []QueryGroup
+	// The name for the generated query method.
+	Name string
+	// The list of subqueries to run in this query aggregator.
+	Queries []QueryGroup
+	// The return type of the aggregator. Must be a pointer to a struct.
 	ReturnType any
-	Store      any
-	OutFile    string
+	// The struct that holds the sqlc queries under the "queries" field. This is what will be used to resolve the methods of the subqueries.
+	Store any
+	// The name of the output file. The ".go" suffix is added automatically. Defaults to the name of the query.
+	OutFile string
 }
 
+// An aggregator for subqueries that will be run together, either as a transaction or as individual goroutines.
 type QueryGroup struct {
-	IsTx       bool
+	// Whether this query should be part of a transaction. It gets ignored if there is only one subquery.
+	IsTx bool
+	// The list of subqueries to run as part of this group. If there is only one entry, it will be run as a standalone query that just calls the sqlc method. If there is more than one and IsTx is true, they will be executed in a transaction. Otherwise, they will be executed as separate goroutines.
 	Subqueries []Subquery
 }
 
@@ -64,6 +80,7 @@ type queryData struct {
 	Package         string
 }
 
+// The struct responsible for generating the queries.
 type QueryGen struct {
 	tmpl   *template.Template
 	outDir string
