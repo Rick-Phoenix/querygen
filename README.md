@@ -1,6 +1,6 @@
-# The goal of this package
+# What it does
 
-This package automatically generate functions that aggregate results from several sqlc subqueries. This is especially useful when using sqlite since sqlc [does not support json aggregation](https://github.com/sqlc-dev/sqlc/issues/3988#issuecomment-2985800613) with it, unlike postgres. 
+This package automatically generates functions that aggregate results from several sqlc subqueries. This is especially useful when using sqlite since sqlc [does not support json aggregation](https://github.com/sqlc-dev/sqlc/issues/3988#issuecomment-2985800613) with it, unlike postgres. 
 
 So this is meant to generate most (and in some cases, even all) of the boilerplate necessary to define and run those subqueries one by one. 
 
@@ -14,6 +14,8 @@ In order to use this package, you must be using sqlc with the following options:
 emit_pointers_for_null_types: true
 emit_result_struct_pointers: true
 ```
+
+`goimports` and `gofmt` (or gofumpt) are called on the generated files, so those should also be installed.
 
 # Example
 
@@ -41,8 +43,16 @@ func TestMain(t *testing.T) {
 		Name:       "GetUserWithPosts",
 		ReturnType: &UserWithPost{},
 		Queries: []QueryGroup{
-			{IsTx: true, Subqueries: []Subquery{{Method: "UpdatePost"}, {Method: "UpdateUser", NoReturn: true}}},
-			{Subqueries: []Subquery{{Method: "GetUser", SingleParamName: "userId"}}},
+            {
+                IsTx: true, 
+                Subqueries: []Subquery{
+                {Method: "UpdatePost"}, 
+                {Method: "UpdateUser", NoReturn: true},
+            }},
+			{
+                Subqueries: []Subquery{
+                {Method: "GetUser", SingleParamName: "userId"},
+            }},
 		},
 		OutFile: "testquery",
 	}
@@ -166,9 +176,13 @@ querySchema := QueryGenSchema{
     ReturnType: &UserWithPosts{},
     Queries: []QueryGroup{
         // Only one subquery here
-        {IsTx: true, Subqueries: []Subquery{{Method: "UpdateUser", NoReturn: true}}},
+        {IsTx: true, 
+            Subqueries: []Subquery{{Method: "UpdateUser", NoReturn: true}}},
         // Doing what we discussed above, to avoid having userId as a separate param
-        {Subqueries: []Subquery{{Method: "GetUser", QueryParamName: "GetPostsFromUserIdParams.userId"}, {Method: "GetPostsFromUserId"}}},
+        {Subqueries: []Subquery{
+            {Method: "GetUser", QueryParamName: "GetPostsFromUserIdParams.userId"}, 
+            {Method: "GetPostsFromUserId"},
+        }},
     },
     OutFile: "testquery",
 	}

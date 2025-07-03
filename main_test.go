@@ -28,8 +28,14 @@ func TestMain(t *testing.T) {
 		Name:       "GetUserWithPosts",
 		ReturnType: &UserWithPosts{},
 		Queries: []QueryGroup{
-			{IsTx: true, Subqueries: []Subquery{{Method: "UpdatePost"}, {Method: "UpdateUser", NoReturn: true}}},
-			{Subqueries: []Subquery{{Method: "GetUser", QueryParamName: "GetPostsFromUserIdParams.userId"}, {Method: "GetPostsFromUserId"}}},
+			{IsTx: true, Subqueries: []Subquery{
+				{Method: "UpdatePost"},
+				{Method: "UpdateUser", NoReturn: true},
+			}},
+			{Subqueries: []Subquery{
+				{Method: "GetUser", QueryParamName: "GetPostsFromUserIdParams.userId"},
+				{Method: "GetPostsFromUserId"},
+			}},
 		},
 		OutFile: "testquery",
 	}
