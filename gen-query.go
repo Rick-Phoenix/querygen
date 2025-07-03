@@ -6,7 +6,9 @@ import (
 	"log"
 	"os"
 	"path"
+	"path/filepath"
 	"reflect"
+	"strings"
 	"text/template"
 
 	u "github.com/Rick-Phoenix/goutils"
@@ -34,9 +36,9 @@ type subqueryData struct {
 type QueryGenSchema struct {
 	Name       string
 	Queries    []QueryGroup
-	OutType    any
+	ReturnType any
 	Store      any
-	OutputPath string
+	OutFile    string
 }
 
 type QueryGroup struct {
@@ -63,30 +65,33 @@ type queryData struct {
 }
 
 type QueryGen struct {
-	tmpl *template.Template
+	tmpl   *template.Template
+	outDir string
+	pkg    string
 }
 
 //go:embed templates/*
 var templateFS embed.FS
 
-func NewQueryGen() *QueryGen {
-	tmpl, err := template.New("protoTemplates").ParseFS(templateFS, "templates/*")
+func NewQueryGen(outDir string) *QueryGen {
+	if outDir == "" {
+		log.Fatalf("Missing output dir for generating queries.")
+	}
+	tmpl, err := template.New("protoTemplates").Funcs(funcMap).ParseFS(templateFS, "templates/*")
 	if err != nil {
 		fmt.Print(fmt.Errorf("Failed to initiate tmpl instance for the generator: %w", err))
 		os.Exit(1)
 	}
 
-	return &QueryGen{tmpl: tmpl}
+	return &QueryGen{tmpl: tmpl, outDir: outDir, pkg: path.Base(outDir)}
 }
 
 func (q *QueryGen) makeQuery(s QueryGenSchema) {
 	tmpl := q.tmpl
 
-	if s.OutputPath == "" {
-		log.Fatalf("Missing output path for query generation.")
-	}
+	queryData := queryData{Name: s.Name, FunctionParams: make(map[string]string), Package: q.pkg}
 
-	if s.OutType == nil {
+	if s.ReturnType == nil {
 		log.Fatalf("Missing output type for query generation.")
 	}
 
@@ -96,7 +101,22 @@ func (q *QueryGen) makeQuery(s QueryGenSchema) {
 		log.Fatalf("Invalid store for query generation. Must be a pointer to a struct (was %q)", store.Name())
 	}
 
-	queryData := queryData{Name: s.Name, FunctionParams: make(map[string]string), Package: path.Dir(s.OutputPath)}
+	outModel := reflect.TypeOf(s.ReturnType).Elem()
+
+	if outModel.Kind() == reflect.Pointer {
+		log.Fatalf("Found pointer of pointer for OutType %q when generating query %q", outModel.Name(), s.Name)
+	}
+
+	queryData.OutType = getPkgName(outModel, queryData.Package)
+
+	if outModel.Kind() != reflect.Struct {
+		log.Fatalf("Output type for query %q is not a struct.", s.Name)
+	}
+
+	for i := range outModel.NumField() {
+		field := outModel.Field(i)
+		queryData.OutTypeFields = append(queryData.OutTypeFields, field.Name)
+	}
 
 	for _, queryGroup := range s.Queries {
 
@@ -157,23 +177,6 @@ func (q *QueryGen) makeQuery(s QueryGenSchema) {
 		queryData.Queries = append(queryData.Queries, queryGroupData)
 	}
 
-	outModel := reflect.TypeOf(s.OutType).Elem()
-
-	if outModel.Kind() == reflect.Pointer {
-		log.Fatalf("Found pointer of pointer for OutType %q when generating query %q", outModel.Name(), s.Name)
-	}
-
-	queryData.OutType = getPkgName(outModel, queryData.Package)
-
-	if outModel.Kind() != reflect.Struct {
-		log.Fatalf("Output type for query %q is not a struct.", s.Name)
-	}
-
-	for i := range outModel.NumField() {
-		field := outModel.Field(i)
-		queryData.OutTypeFields = append(queryData.OutTypeFields, field.Name)
-	}
-
 	if len(queryData.FunctionParams) > 1 {
 		queryData.FuncParamName = "params"
 		queryData.FuncParamType = queryData.Name + "Params"
@@ -184,12 +187,17 @@ func (q *QueryGen) makeQuery(s QueryGenSchema) {
 		}
 	}
 
-	err := u.ExecTemplateAndFormat(tmpl, "multiQuery", s.OutputPath, queryData)
+	outFile := s.OutFile
+	if outFile == "" {
+		outFile = s.Name
+	}
+	fullPath := filepath.Join(q.outDir, outFile+".go")
+	err := u.ExecTemplateAndFormat(tmpl, "multiQuery", fullPath, queryData)
 	if err != nil {
 		fmt.Print(err)
 	}
 
-	fmt.Printf("✅ Query generated at %q\n", s.OutputPath)
+	fmt.Printf("✅ Query generated at %q\n", fullPath)
 }
 
 func getPkgName(model reflect.Type, pkg string) string {
@@ -198,4 +206,8 @@ func getPkgName(model reflect.Type, pkg string) string {
 	}
 
 	return model.String()
+}
+
+var funcMap = template.FuncMap{
+	"lower": strings.ToLower,
 }

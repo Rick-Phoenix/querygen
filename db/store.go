@@ -3,7 +3,7 @@ package db
 import (
 	"database/sql"
 
-	"github.com/Rick-Phoenix/protoschema/db/sqlgen"
+	"github.com/Rick-Phoenix/querygen/db/sqlgen"
 )
 
 type Store struct {

@@ -1,0 +1,10 @@
+version: "3"
+
+dotenv:
+  - .env
+
+tasks:
+  test-main:
+    cmds:
+      - go test -v . -run TestMain
+    silent: true
