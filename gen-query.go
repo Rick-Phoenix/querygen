@@ -1,13 +1,15 @@
 package querygen
 
 import (
+	"embed"
 	"fmt"
+	"log"
+	"os"
 	"path"
 	"reflect"
+	"text/template"
 
 	u "github.com/Rick-Phoenix/goutils"
-	"github.com/labstack/gommon/log"
-	_ "modernc.org/sqlite"
 )
 
 type Subquery struct {
@@ -60,8 +62,25 @@ type queryData struct {
 	Package         string
 }
 
-func (p *ProtoPackage) makeQuery(s QueryGenSchema) {
-	tmpl := p.tmpl
+type QueryGen struct {
+	tmpl *template.Template
+}
+
+//go:embed templates/*
+var templateFS embed.FS
+
+func NewQueryGen() *QueryGen {
+	tmpl, err := template.New("protoTemplates").ParseFS(templateFS, "templates/*")
+	if err != nil {
+		fmt.Print(fmt.Errorf("Failed to initiate tmpl instance for the generator: %w", err))
+		os.Exit(1)
+	}
+
+	return &QueryGen{tmpl: tmpl}
+}
+
+func (q *QueryGen) makeQuery(s QueryGenSchema) {
+	tmpl := q.tmpl
 
 	if s.OutputPath == "" {
 		log.Fatalf("Missing output path for query generation.")

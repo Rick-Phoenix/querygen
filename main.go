@@ -7,6 +7,7 @@ import (
 	"github.com/Rick-Phoenix/querygen/db"
 	"github.com/Rick-Phoenix/querygen/db/sqlgen"
 	"github.com/labstack/gommon/log"
+	_ "modernc.org/sqlite"
 )
 
 func TestMain(t *testing.T) {
