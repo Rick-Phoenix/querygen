@@ -8,3 +8,6 @@ tasks:
     cmds:
       - go test -v . -run TestMain
     silent: true
+  sqlc:
+    cmd: sqlc generate
+    dir: testdata

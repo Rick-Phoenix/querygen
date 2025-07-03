@@ -6,4 +6,3 @@ cmd
 codecompanion-workspace.json
 cel_test.go
 connect_handler.go
-sqlc.yaml

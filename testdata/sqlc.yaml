@@ -1,0 +1,17 @@
+version: "2"
+sql:
+  - engine: "sqlite"
+    queries: "db/query.sql"
+    schema: "db/schema.sql"
+
+    gen:
+      go:
+        initialisms: []
+        package: "sqlgen"
+        out: "db/sqlgen"
+        emit_json_tags: true
+        emit_pointers_for_null_types: true
+        emit_result_struct_pointers: true
+        overrides:
+          - db_type: "datetime"
+            go_type: "time.Time"
