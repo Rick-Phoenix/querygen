@@ -1,7 +1,6 @@
 *.env
 gen
 proto
-db
 cmd
 *.proto
 codecompanion-workspace.json
