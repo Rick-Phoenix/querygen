@@ -5,10 +5,19 @@ import (
 	"log"
 	"testing"
 
-	_db "github.com/Rick-Phoenix/querygen/testdata/db"
 	"github.com/Rick-Phoenix/querygen/testdata/db/sqlgen"
 	_ "modernc.org/sqlite"
 )
+
+type UserWithPost struct {
+	User *sqlgen.User
+	Post *sqlgen.Post
+}
+
+type UserWithPosts struct {
+	*sqlgen.User
+	Posts []*sqlgen.Post
+}
 
 func TestMain(t *testing.T) {
 	database, err := sql.Open("sqlite", ":memory:")
@@ -17,15 +26,14 @@ func TestMain(t *testing.T) {
 	}
 	querySchema := QueryGenSchema{
 		Name:       "GetUserWithPosts",
-		ReturnType: &_db.PostWithUser{},
+		ReturnType: &UserWithPosts{},
 		Queries: []QueryGroup{
 			{IsTx: true, Subqueries: []Subquery{{Method: "UpdatePost"}, {Method: "UpdateUser", NoReturn: true}}},
-			{Subqueries: []Subquery{{Method: "GetUser", SingleParamName: "userId"}}},
+			{Subqueries: []Subquery{{Method: "GetUser", QueryParamName: "GetPostsFromUserIdParams.userId"}, {Method: "GetPostsFromUserId"}}},
 		},
-		Store:   sqlgen.New(database),
-		OutFile: "tttestquery",
+		OutFile: "testquery",
 	}
 
-	gen := NewQueryGen("testdata/db")
+	gen := New(sqlgen.New(database), "testdata/db")
 	gen.makeQuery(querySchema)
 }

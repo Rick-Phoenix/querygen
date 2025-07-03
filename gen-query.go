@@ -48,8 +48,6 @@ type QueryGenSchema struct {
 	Queries []QueryGroup
 	// The return type of the aggregator. Must be a pointer to a struct.
 	ReturnType any
-	// The struct that holds the sqlc queries under the "queries" field. This is what will be used to resolve the methods of the subqueries.
-	Store any
 	// The name of the output file. The ".go" suffix is added automatically. Defaults to the name of the query.
 	OutFile string
 }
@@ -85,22 +83,34 @@ type QueryGen struct {
 	tmpl   *template.Template
 	outDir string
 	pkg    string
+	store  reflect.Type
 }
 
 //go:embed templates/*
 var templateFS embed.FS
 
-func NewQueryGen(outDir string) *QueryGen {
+// The constructor for the query generator.
+// The "store" must be the returned value from running (sqlc_package_name_you_use).New(db_instance), or a wrapper struct that holds the sqlc queries under the "queries" field. The methods defined in the query schemas will be accessed from it.
+// outDir is the output directory for the generated files. The last part will be used as the package name for the generated files.
+// This must be the same package where the store is defined, as the methods will be assigned to it directly.
+func New(store any, outDir string) *QueryGen {
 	if outDir == "" {
 		log.Fatalf("Missing output dir for generating queries.")
 	}
+
+	storeModel := reflect.TypeOf(store)
+
+	if storeModel.Elem().Kind() != reflect.Struct {
+		log.Fatalf("Invalid store for query generation. Must be a pointer to a struct (was %q)", storeModel.Name())
+	}
+
 	tmpl, err := template.New("protoTemplates").Funcs(funcMap).ParseFS(templateFS, "templates/*")
 	if err != nil {
 		fmt.Print(fmt.Errorf("Failed to initiate tmpl instance for the generator: %w", err))
 		os.Exit(1)
 	}
 
-	return &QueryGen{tmpl: tmpl, outDir: outDir, pkg: path.Base(outDir)}
+	return &QueryGen{tmpl: tmpl, outDir: outDir, pkg: path.Base(outDir), store: storeModel}
 }
 
 func (q *QueryGen) makeQuery(s QueryGenSchema) {
@@ -112,13 +122,8 @@ func (q *QueryGen) makeQuery(s QueryGenSchema) {
 		log.Fatalf("Missing output type for query generation.")
 	}
 
-	store := reflect.TypeOf(s.Store)
-
-	if store.Elem().Kind() != reflect.Struct {
-		log.Fatalf("Invalid store for query generation. Must be a pointer to a struct (was %q)", store.Name())
-	}
-
 	outModel := reflect.TypeOf(s.ReturnType).Elem()
+	store := q.store
 
 	if outModel.Kind() == reflect.Pointer {
 		log.Fatalf("Found pointer of pointer for OutType %q when generating query %q", outModel.Name(), s.Name)

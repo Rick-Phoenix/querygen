@@ -17,13 +17,3 @@ func NewStore(db *sql.DB) *Store {
 		Queries: sqlgen.New(db),
 	}
 }
-
-type PostWithUser struct {
-	User *sqlgen.User
-	Post *sqlgen.Post
-}
-
-type UserWithPosts struct {
-	*sqlgen.User
-	Posts []*sqlgen.Post
-}
