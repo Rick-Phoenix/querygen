@@ -90,7 +90,7 @@ type QueryGen struct {
 var templateFS embed.FS
 
 // The constructor for the query generator.
-// The "store" must be the returned value from running (sqlc_package_name_you_use).New(db_instance), or a wrapper struct that holds the sqlc queries under the "queries" field. The methods defined in the query schemas will be accessed from it.
+// The "store" must be the sqlc instance with the db and Queries fields, or a struct that wraps those.
 // outDir is the output directory for the generated files. The last part will be used as the package name for the generated files.
 // This must be the same package where the store is defined, as the methods will be assigned to it directly.
 func New(store any, outDir string) *QueryGen {

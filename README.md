@@ -20,7 +20,7 @@ emit_result_struct_pointers: true
 # Example
 
 >[!NOTE]
->The "Store" passed to the querygen.New must be the return value of calling `(your_sqlc_package).New(db_instance)`, or a wrapper struct that holds the sqlc queries under the "Queries" field.
+>The "Store" passed to the querygen.New must be the return value of calling `(your_sqlc_package).New(db_instance)`, or a wrapper struct that holds the sqlc queries under the "Queries" field and the db instance under the "db" field.
 >
 >The outDir param is where the files will be generated, and the last part of this path will be the package name for the generated files. 
 >
@@ -117,7 +117,7 @@ So, a few things to note here:
 2. The name of the parameter to pass to a subquery can be overriden, which can be handy in some situations as a hacky way to avoid having an extra struct param if a query param is used in multiple places. 
 
 >[!NOTE]
-> An example of this is also shown below.
+> Another example of this is also shown below.
 
 Let's take this example. We need to make two queries: 
 - One that gets a user by its id
@@ -198,10 +198,12 @@ type GetUserWithPostsParams struct {
 }
 
 func (s *Store) GetUserWithPosts(ctx context.Context, params GetUserWithPostsParams) (*querygen.UserWithPosts, error) {
+    // Only one query here, so no transaction is necessary
 	if err := s.Queries.UpdateUser(ctx, params.UpdateUserParams); err != nil {
 		return nil, fmt.Errorf("error with UpdateUser: %w", err)
 	}
 
+    // Two queries in a non-transaction group, so goroutines are used
 	userChan := make(chan *sqlgen.User)
 
 	postsChan := make(chan []*sqlgen.Post)
