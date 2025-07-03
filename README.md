@@ -71,10 +71,12 @@ func (s *Store) GetUserWithPosts(ctx context.Context, params GetUserWithPostsPar
 
 	post, err := qtx.UpdatePost(ctx, params.UpdatePostParams)
 	if err != nil {
+        // Uses the variable name in the error message
 		return nil, fmt.Errorf("failed to get post: %w", err)
 	}
 
 	if err := qtx.UpdateUser(ctx, params.UpdateUserParams); err != nil {
+        // No variable name available here, so it uses the name of the method
 		return nil, fmt.Errorf("error with UpdateUser: %w", err)
 	}
 
@@ -106,7 +108,7 @@ So, a few things to note here:
 
 Let's take this example. We need to make two queries: 
 - One that gets a user by its id
-- One that gets all posts with a certain userid and a certain postid
+- One that gets all posts with a certain userId and a certain postId
 
 In this case, the package would generate a wrapper struct that holds the `GetPostsByUserIdParams` and a `userId` field.
 But since `userId` is also being used in `GetPostsByUserIdParams`, you can ovverride this by setting `QueryParamName` to `GetPostsByUserIdParams.userId`. 
@@ -121,7 +123,7 @@ post, err := qtx.UpdatePost(ctx, params.UpdatePostParams)
 ```
 
 Is named "post" because the return type is `sqlgen.Post`. 
-This can also be ovverriden by setting `VarName` to another value.
+This can also be overriden by setting `VarName` to another value.
 
 And in the return type, all fields are automatically assigned to their respective var names:
 

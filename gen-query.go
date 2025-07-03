@@ -54,7 +54,7 @@ type QueryGenSchema struct {
 
 // An aggregator for subqueries that will be run together, either as a transaction or as individual goroutines.
 type QueryGroup struct {
-	// Whether this query should be part of a transaction. It gets ignored if there is only one subquery.
+	// Whether this query should be part of a transaction. If false, goroutines will be used instead. It gets ignored if there is only one subquery.
 	IsTx bool
 	// The list of subqueries to run as part of this group. If there is only one entry, it will be run as a standalone query that just calls the sqlc method. If there is more than one and IsTx is true, they will be executed in a transaction. Otherwise, they will be executed as separate goroutines.
 	Subqueries []Subquery
