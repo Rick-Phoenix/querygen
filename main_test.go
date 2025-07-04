@@ -40,6 +40,6 @@ func TestMain(t *testing.T) {
 		OutFile: "testquery",
 	}
 
-	gen := New(sqlgen.New(database), "testdata/db")
+	gen := New(sqlgen.New(database), "_test/db")
 	gen.makeQuery(querySchema)
 }

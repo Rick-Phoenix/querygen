@@ -19,5 +19,3 @@ require (
 	modernc.org/memory v1.11.0 // indirect
 	modernc.org/sqlite v1.38.0
 )
-
-replace github.com/Rick-Phoenix/goutils v0.1.2 => ../go-utils
