@@ -9,15 +9,15 @@ type {{ .FuncParamType }} struct {
 }
 {{ end }}
 
-func (s *Store) {{ .Name }}(ctx context.Context, {{ .FuncParamName }} {{ .FuncParamType }}) (*{{ .OutType }}, error) {
+func (q *Queries) {{ .Name }}(ctx context.Context, {{ .FuncParamName }} {{ .FuncParamType }}) (*{{ .OutType }}, error) {
   {{ if .HasTx }}
-  tx, err := s.db.(*sql.DB).BeginTx(ctx, nil)
+  tx, err := q.db.(*sql.DB).BeginTx(ctx, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to begin transaction: %w", err)
 	}
 	defer tx.Rollback()
 
-	qtx := s.Queries.WithTx(tx)
+	qtx := q.Queries.WithTx(tx)
   {{ end }}
 
   {{ range .Queries }}

@@ -12,7 +12,7 @@
   {{ range .Subqueries }}
   go func() {
     defer wg.Done()
-    {{ .VarName }}, err := s.Queries.{{ .Method }}(ctx, {{ if .Context.MakeParamStruct }}params.{{ end }}{{ .ParamName }})
+    {{ .VarName }}, err := q.{{ .Method }}(ctx, {{ if .Context.MakeParamStruct }}params.{{ end }}{{ .ParamName }})
     if err != nil {
       errChan <- fmt.Errorf("failed to get {{ .VarName }}: %w", err)
       return

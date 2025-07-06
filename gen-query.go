@@ -12,18 +12,15 @@ import (
 	"text/template"
 
 	u "github.com/Rick-Phoenix/goutils"
+	"github.com/Rick-Phoenix/querygen/_test/db"
 )
 
 // A subquery is defined and executed as part of a QueryGroup. It contains all the data that gets used for the file generation.
 type Subquery struct {
 	// Name of the method that gets called by the subquery (i.e. "GetUser")
 	Method string
-	// If this query has a single parameter that is not a struct, it will be added to the list of params with this name.
-	SingleParamName string
 	// An override for the name of the param being passed to the sqlc query that this subquery uses. Can be used, for example, to reuse a param that gets used in another struct param used in another query.
 	QueryParamName string
-	// Whether this query returns a value or just an error.
-	NoReturn bool
 	// The name of the variable to assign to this subquery. Defaults to the name of the return type of the query.
 	Varname string
 	// Whether the first return value should be discarded.
@@ -35,7 +32,7 @@ type subqueryData struct {
 	ParamName     string
 	VarName       string
 	ReturnType    string
-	NoReturn      bool
+	IsErr         bool
 	DiscardReturn bool
 	Context       *queryData
 }
@@ -80,28 +77,26 @@ type queryData struct {
 
 // The struct responsible for generating the queries.
 type QueryGen struct {
-	tmpl   *template.Template
-	outDir string
-	pkg    string
-	store  reflect.Type
+	tmpl      *template.Template
+	outDir    string
+	pkg       string
+	queryData map[string]*db.QueryData
+}
+
+type QueryStruct interface {
+	GetPkg() string
+	ExtractMethods() map[string]*db.QueryData
 }
 
 //go:embed templates/*
 var templateFS embed.FS
 
 // The constructor for the query generator.
-// The "store" must be the sqlc instance with the db and Queries fields, or a struct that wraps those.
-// outDir is the output directory for the generated files. The last part will be used as the package name for the generated files.
-// This must be the same package where the store is defined, as the methods will be assigned to it directly.
-func New(store any, outDir string) *QueryGen {
+// The "store" must be the *Queries sqlc-generated instance, augmented with the GetPkg and ExtractMethods methods.
+// outDir is the output directory for the generated files, which must be the same as the sqlc package.
+func New(queryStruct QueryStruct, outDir string) *QueryGen {
 	if outDir == "" {
 		log.Fatalf("Missing output dir for generating queries.")
-	}
-
-	storeModel := reflect.TypeOf(store)
-
-	if storeModel.Elem().Kind() != reflect.Struct {
-		log.Fatalf("Invalid store for query generation. Must be a pointer to a struct (was %q)", storeModel.Name())
 	}
 
 	tmpl, err := template.New("protoTemplates").Funcs(funcMap).ParseFS(templateFS, "templates/*")
@@ -110,7 +105,7 @@ func New(store any, outDir string) *QueryGen {
 		os.Exit(1)
 	}
 
-	return &QueryGen{tmpl: tmpl, outDir: outDir, pkg: path.Base(outDir), store: storeModel}
+	return &QueryGen{tmpl: tmpl, outDir: outDir, pkg: filepath.Base(outDir), queryData: queryStruct.ExtractMethods()}
 }
 
 func (q *QueryGen) makeQuery(s QueryGenSchema) {
@@ -122,21 +117,18 @@ func (q *QueryGen) makeQuery(s QueryGenSchema) {
 		log.Fatalf("Missing output type for query generation.")
 	}
 
-	outModel := reflect.TypeOf(s.ReturnType).Elem()
-	store := q.store
+	returnType := reflect.TypeOf(s.ReturnType)
 
-	if outModel.Kind() == reflect.Pointer {
-		log.Fatalf("Found pointer of pointer for OutType %q when generating query %q", outModel.Name(), s.Name)
+	if returnType.Kind() != reflect.Pointer || returnType.Elem().Kind() != reflect.Struct {
+		log.Fatalf("The returnType must be a pointer to a struct.")
+	} else {
+		returnType = returnType.Elem()
 	}
 
-	queryData.OutType = getPkgName(outModel, queryData.Package)
+	queryData.OutType = returnType.Name()
 
-	if outModel.Kind() != reflect.Struct {
-		log.Fatalf("Output type for query %q is not a struct.", s.Name)
-	}
-
-	for i := range outModel.NumField() {
-		field := outModel.Field(i)
+	for i := range returnType.NumField() {
+		field := returnType.Field(i)
 		queryData.OutTypeFields = append(queryData.OutTypeFields, field.Name)
 	}
 
@@ -149,48 +141,24 @@ func (q *QueryGen) makeQuery(s QueryGenSchema) {
 		}
 
 		for _, subQ := range queryGroup.Subqueries {
-			subQData := subqueryData{Method: subQ.Method, Context: &queryData, VarName: subQ.Varname, NoReturn: subQ.NoReturn, DiscardReturn: subQ.DiscardReturn}
-			method, ok := store.MethodByName(subQ.Method)
-
+			method, ok := q.queryData[subQ.Method]
+			fmt.Printf("DEBUG: %+v\n", method)
 			if !ok {
-				log.Fatalf("Could not find method %q in %q", subQ.Method, store.String())
+				log.Fatalf("Could not find method %q in the queryData map.", subQ.Method)
 			}
 
-			if method.Type.NumIn() >= 3 {
-				secondParam := method.Type.In(2)
-				if secondParam.Kind() == reflect.Struct {
-					subQData.ParamName = secondParam.Name()
-					queryData.FunctionParams[secondParam.Name()] = getPkgName(secondParam, queryData.Package)
-
-				} else if subQ.SingleParamName != "" {
-					subQData.ParamName = subQ.SingleParamName
-					queryData.FunctionParams[subQ.SingleParamName] = secondParam.Name()
-				} else if subQ.QueryParamName != "" {
-					subQData.ParamName = subQ.QueryParamName
-				}
-			}
+			subQData := subqueryData{Method: subQ.Method, Context: &queryData, VarName: subQ.Varname, IsErr: method.IsErr, DiscardReturn: subQ.DiscardReturn, ReturnType: method.ReturnTypes[0]}
 
 			if len(queryData.FunctionParams) > 1 {
 				queryData.MakeParamStruct = true
 			}
 
-			if !subQ.NoReturn && method.Type.NumOut() > 0 {
-				out := method.Type.Out(0)
-				outElem := out.Elem()
-				outShortType := outElem.Name()
-				outLongType := getPkgName(out, queryData.Package)
-				if out.Kind() == reflect.Slice {
-					outShortType = outElem.Elem().Name() + "s"
-				}
-				outShortLower := u.Uncapitalize(outShortType)
-				if subQ.NoReturn {
-					subQData.VarName = ""
-				} else if subQ.DiscardReturn {
+			if !subQData.IsErr {
+				if subQ.DiscardReturn {
 					subQData.VarName = "_"
 				} else if subQ.Varname == "" {
-					subQData.VarName = outShortLower
+					subQData.VarName = method.ReturnTypes[0]
 				}
-				subQData.ReturnType = outLongType
 			}
 
 			queryGroupData.Subqueries = append(queryGroupData.Subqueries, subQData)
@@ -214,7 +182,8 @@ func (q *QueryGen) makeQuery(s QueryGenSchema) {
 		outFile = s.Name
 	}
 	fullPath := filepath.Join(q.outDir, outFile+".go")
-	err := u.ExecTemplateAndFormat(tmpl, "multiQuery", fullPath, queryData)
+
+	err := u.ExecTemplate(tmpl, "multiQuery", fullPath, queryData)
 	if err != nil {
 		fmt.Print(err)
 	}

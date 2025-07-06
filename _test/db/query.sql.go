@@ -3,7 +3,7 @@
 //   sqlc v1.29.0
 // source: query.sql
 
-package sqlgen
+package db
 
 import (
 	"context"
@@ -19,8 +19,12 @@ RETURNING
     id, name, created_at
 `
 
-func (q *Queries) CreateUser(ctx context.Context, name string) (*User, error) {
-	row := q.db.QueryRowContext(ctx, createUser, name)
+type CreateUserParams struct {
+	Name string `json:"name"`
+}
+
+func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (*User, error) {
+	row := q.db.QueryRowContext(ctx, createUser, arg.Name)
 	var i User
 	err := row.Scan(&i.Id, &i.Name, &i.CreatedAt)
 	return &i, err
@@ -81,8 +85,12 @@ WHERE
     id = ?1
 `
 
-func (q *Queries) GetUser(ctx context.Context, userid int64) (*User, error) {
-	row := q.db.QueryRowContext(ctx, getUser, userid)
+type GetUserParams struct {
+	UserId int64 `json:"userId"`
+}
+
+func (q *Queries) GetUser(ctx context.Context, arg GetUserParams) (*User, error) {
+	row := q.db.QueryRowContext(ctx, getUser, arg.UserId)
 	var i User
 	err := row.Scan(&i.Id, &i.Name, &i.CreatedAt)
 	return &i, err
@@ -99,6 +107,10 @@ WHERE
     users.id = ?
 `
 
+type PostWithUserParams struct {
+	Id int64 `json:"id"`
+}
+
 type PostWithUserRow struct {
 	Id          int64     `json:"id"`
 	Title       string    `json:"title"`
@@ -110,8 +122,8 @@ type PostWithUserRow struct {
 	User        User      `json:"user"`
 }
 
-func (q *Queries) PostWithUser(ctx context.Context, id int64) (*PostWithUserRow, error) {
-	row := q.db.QueryRowContext(ctx, postWithUser, id)
+func (q *Queries) PostWithUser(ctx context.Context, arg PostWithUserParams) (*PostWithUserRow, error) {
+	row := q.db.QueryRowContext(ctx, postWithUser, arg.Id)
 	var i PostWithUserRow
 	err := row.Scan(
 		&i.Id,

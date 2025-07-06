@@ -1,9 +1,9 @@
 {{ define "singleSubquery" }}
-  {{ $prefix := "s.Queries" }}
+  {{ $prefix := "q" }}
 
   {{ range .Subqueries }}
   {{ if and $.IsTx .Context.HasTx }} {{ $prefix = "qtx" }} {{ end }}
-    {{ if or .NoReturn .DiscardReturn }}
+    {{ if or .IsErr .DiscardReturn }}
     if {{ if .VarName }}{{ .VarName }}, {{end}}err := {{ $prefix }}.{{ .Method }}(ctx, {{ if .Context.MakeParamStruct }}params.{{ end }}{{ .ParamName }}); err != nil {
       return nil, fmt.Errorf("error with {{ .Method }}: %w", err)
     }
@@ -12,6 +12,6 @@
     if err != nil {
       return nil, fmt.Errorf("failed to get {{ .VarName }}: %w", err)
     }
-  {{ end }}{{/* If .NoReturn */}}
+  {{ end }}{{/* If .IsErr */}}
   {{ end }}
 {{ end }}
