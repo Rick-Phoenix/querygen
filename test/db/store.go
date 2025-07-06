@@ -10,10 +10,11 @@ type QueryData struct {
 	Name         string
 	ParamName    string
 	Params       map[string]string
-	IsResult     bool
-	IsErr        bool
 	ReturnTypes  []string
 	ReturnFields map[string]string
+	IsResult     bool
+	IsErr        bool
+	SliceReturn  bool
 }
 
 func (q *Queries) GetPkg() string {
@@ -50,6 +51,7 @@ func (q *Queries) ExtractMethods() map[string]*QueryData {
 			} else {
 				var target reflect.Type
 				if firstReturn.Kind() == reflect.Slice {
+					data.SliceReturn = true
 					target = firstReturn.Elem().Elem()
 				} else if firstReturn.Kind() == reflect.Pointer {
 					target = firstReturn.Elem()
@@ -79,4 +81,18 @@ func (q *Queries) ExtractMethods() map[string]*QueryData {
 	}
 
 	return output
+}
+
+type UserWithPost struct {
+	User *User
+	Post *Post
+}
+
+type UserWithPosts struct {
+	*User
+	Posts []*Post
+}
+
+type PostsSlice struct {
+	Posts *Post
 }

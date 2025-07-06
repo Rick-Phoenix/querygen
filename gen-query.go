@@ -12,15 +12,13 @@ import (
 	"text/template"
 
 	u "github.com/Rick-Phoenix/goutils"
-	"github.com/Rick-Phoenix/querygen/_test/db"
+	"github.com/Rick-Phoenix/querygen/test/db"
 )
 
 // A subquery is defined and executed as part of a QueryGroup. It contains all the data that gets used for the file generation.
 type Subquery struct {
 	// Name of the method that gets called by the subquery (i.e. "GetUser")
 	Method string
-	// An override for the name of the param being passed to the sqlc query that this subquery uses. Can be used, for example, to reuse a param that gets used in another struct param used in another query.
-	QueryParamName string
 	// The name of the variable to assign to this subquery. Defaults to the name of the return type of the query.
 	Varname string
 	// Whether the first return value should be discarded.
@@ -32,9 +30,10 @@ type subqueryData struct {
 	ParamName     string
 	VarName       string
 	ReturnType    string
+	Context       *queryData
 	IsErr         bool
 	DiscardReturn bool
-	Context       *queryData
+	SliceReturn   bool
 }
 
 // The schema for a query aggregator.
@@ -142,12 +141,14 @@ func (q *QueryGen) makeQuery(s QueryGenSchema) {
 
 		for _, subQ := range queryGroup.Subqueries {
 			method, ok := q.queryData[subQ.Method]
-			fmt.Printf("DEBUG: %+v\n", method)
 			if !ok {
 				log.Fatalf("Could not find method %q in the queryData map.", subQ.Method)
 			}
 
-			subQData := subqueryData{Method: subQ.Method, Context: &queryData, VarName: subQ.Varname, IsErr: method.IsErr, DiscardReturn: subQ.DiscardReturn, ReturnType: method.ReturnTypes[0]}
+			subQData := subqueryData{Method: subQ.Method, Context: &queryData, VarName: subQ.Varname, IsErr: method.IsErr, DiscardReturn: subQ.DiscardReturn, ReturnType: method.ReturnTypes[0], SliceReturn: method.SliceReturn}
+
+			subQData.ParamName = method.ParamName
+			queryData.FunctionParams[method.ParamName] = method.ParamName
 
 			if len(queryData.FunctionParams) > 1 {
 				queryData.MakeParamStruct = true
@@ -157,7 +158,10 @@ func (q *QueryGen) makeQuery(s QueryGenSchema) {
 				if subQ.DiscardReturn {
 					subQData.VarName = "_"
 				} else if subQ.Varname == "" {
-					subQData.VarName = method.ReturnTypes[0]
+					subQData.VarName = u.Uncapitalize(method.ReturnTypes[0])
+					if subQData.SliceReturn {
+						subQData.VarName = subQData.VarName + "s"
+					}
 				}
 			}
 
@@ -183,7 +187,7 @@ func (q *QueryGen) makeQuery(s QueryGenSchema) {
 	}
 	fullPath := filepath.Join(q.outDir, outFile+".go")
 
-	err := u.ExecTemplate(tmpl, "multiQuery", fullPath, queryData)
+	err := u.ExecTemplateAndFormat(tmpl, "multiQuery", fullPath, queryData)
 	if err != nil {
 		fmt.Print(err)
 	}
@@ -200,5 +204,7 @@ func getPkgName(model reflect.Type, pkg string) string {
 }
 
 var funcMap = template.FuncMap{
-	"lower": strings.ToLower,
+	"lower":        strings.ToLower,
+	"capitalize":   u.Capitalize,
+	"uncapitalize": u.Uncapitalize,
 }

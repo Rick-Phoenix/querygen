@@ -1,8 +1,16 @@
-{{ define "goroutineQuery" }}
+{{ define "structType" }}
+{{- if .SliceReturn -}}
+[]*{{ .ReturnType }}
+{{- else -}}
+*{{ .ReturnType }}
+{{- end -}}
+{{ end }}
 
-{{ range .Subqueries }}
-  {{ .VarName }}Chan := make(chan {{ .ReturnType }})
-  {{ end }}
+{{- define "goroutineQuery" -}}
+
+{{- range .Subqueries }}
+  {{ .VarName }}Chan := make(chan {{ template "structType" . }})
+  {{ end -}}
   errChan := make(chan error, {{ len $.Subqueries }})
 
 

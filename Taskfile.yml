@@ -10,4 +10,4 @@ tasks:
     silent: true
   sqlc:
     cmd: sqlc generate
-    dir: _test
+    dir: test
