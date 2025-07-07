@@ -164,7 +164,7 @@ func (q *Queries) GetUserWithPosts(ctx context.Context, params GetUserWithPostsP
 		defer wg.Done()
 		posts, err := q.GetPostsFromUserId(ctx, params.GetPostsFromUserIdParams)
 		if err != nil {
-			errChan <- fmt.Errorf("failed to get posts: %w", err)
+			errChan <- err
 			return
 		}
 		postsChan <- posts
@@ -174,7 +174,7 @@ func (q *Queries) GetUserWithPosts(ctx context.Context, params GetUserWithPostsP
 		defer wg.Done()
 		user, err := q.GetUser(ctx, params.GetUserParams)
 		if err != nil {
-			errChan <- fmt.Errorf("failed to get user: %w", err)
+			errChan <- err
 			return
 		}
 		userChan <- user
